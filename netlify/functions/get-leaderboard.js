@@ -3,7 +3,7 @@
 
 import { getStore } from "@netlify/blobs";
 
-const ageGroups = ['10-20', '20-30', '30-40', '40-50', '50+'];
+const ageGroups = ['10-19', '20-29', '30-39', '40-49', '50+'];
 
 export default async (req, context) => {
     // Only allow GET requests
@@ -25,7 +25,7 @@ export default async (req, context) => {
                 const stats = await store.get(key, { type: 'json' });
 
                 if (stats && stats.totalAttempts > 0) {
-                    const totalQuestions = stats.totalAttempts * 18;
+                    const totalQuestions = stats.totalAttempts * 9; // 9 questions per quiz
                     const averageScore = (stats.totalCorrect / totalQuestions) * 100;
 
                     leaderboard.push({
