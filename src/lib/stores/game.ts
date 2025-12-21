@@ -1,5 +1,5 @@
 import { writable, derived, get } from 'svelte/store';
-import { allPairs, shufflePairs, randomizePairOrder, type QuizPair, type QuizItem, type AgeGroup, type ContentType } from '../data/content';
+import { generateAllPairs, shufflePairs, randomizePairOrder, type QuizPair, type QuizItem, type AgeGroup, type ContentType } from '../data/content';
 
 // Game State Types
 export interface Answer {
@@ -48,7 +48,7 @@ function createGameStore() {
 
         // Set age group and start quiz
         setAgeGroup: (ageGroup: AgeGroup) => {
-            const shuffledPairs = shufflePairs(allPairs);
+            const shuffledPairs = shufflePairs(generateAllPairs());
             const randomizedPairs: RandomizedPair[] = shuffledPairs.map(pair => {
                 const { left, right, realIsLeft } = randomizePairOrder(pair);
                 return { pair, left, right, realIsLeft };
@@ -142,10 +142,10 @@ export const score = derived(gameStore, $game => {
 });
 
 export const scoreByType = derived(gameStore, $game => {
-    const byType = {
+    const byType: Record<ContentType, { correct: number; total: number }> = {
         image: { correct: 0, total: 0 },
         video: { correct: 0, total: 0 },
-        poem: { correct: 0, total: 0 }
+        quote: { correct: 0, total: 0 }
     };
 
     $game.answers.forEach(answer => {

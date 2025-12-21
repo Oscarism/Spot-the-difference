@@ -1,7 +1,9 @@
 // Content metadata for quiz items
-// Now structured as pairs: one real image and one AI image per round
+// Now structured as pairs: one real item and one AI item per round
+// Images have 2 fakes per real, randomly selecting one per session
 
-export type ContentType = 'image' | 'video' | 'poem';
+export type ContentType = 'image' | 'video' | 'quote';
+export type AspectRatio = '3/4' | '4/3' | '16/9' | '9/16' | 'auto';
 
 export interface QuizItem {
   id: string;
@@ -11,6 +13,7 @@ export interface QuizItem {
   title?: string;
   author?: string;
   description?: string;
+  aspectRatio?: AspectRatio;
 }
 
 // Paired content for side-by-side comparison
@@ -19,249 +22,226 @@ export interface QuizPair {
   type: ContentType;
   realItem: QuizItem;
   aiItem: QuizItem;
+  aspectRatio?: AspectRatio; // Shared aspect ratio for the pair
 }
 
-// Image pairs - real and AI side by side
-export const imagePairs: QuizPair[] = [
+// Image pairs configuration - each real has 2 possible fakes
+interface ImagePairConfig {
+  id: string;
+  realSource: string;
+  fakeSource1: string;
+  fakeSource2: string;
+  title: string;
+  description: string;
+  aspectRatio: AspectRatio;
+}
+
+const imagePairConfigs: ImagePairConfig[] = [
   {
-    id: 'pair-img-1',
-    type: 'image',
+    id: 'street',
+    realSource: '/images/Street_Real.jpg',
+    fakeSource1: '/images/Street_Fake1.jpg',
+    fakeSource2: '/images/Street_Fake2.jpg',
+    title: 'Street Scene',
+    description: 'Urban street photography',
+    aspectRatio: '3/4' // 896x1200 - portrait
+  },
+  {
+    id: 'cat',
+    realSource: '/images/Cat_Real.jpg',
+    fakeSource1: '/images/Cat_fake1.jpg',
+    fakeSource2: '/images/Cat_fake2.jpg',
+    title: 'Cat Portrait',
+    description: 'Feline photography',
+    aspectRatio: '3/4' // 896x1200 - portrait
+  },
+  {
+    id: 'venice',
+    realSource: '/images/Venice_Real.jpg',
+    fakeSource1: '/images/Venice_Fake1.jpg',
+    fakeSource2: '/images/Venice_Fake2.jpg',
+    title: 'Venice Canal',
+    description: 'Italian cityscape',
+    aspectRatio: '16/9' // 1376x768 - landscape
+  }
+];
+
+// Video pairs configuration
+interface VideoPairConfig {
+  id: string;
+  realSource: string;
+  fakeSource: string;
+  title: string;
+  description: string;
+  aspectRatio: AspectRatio;
+}
+
+const videoPairConfigs: VideoPairConfig[] = [
+  {
+    id: 'cat',
+    realSource: '/videos/Cat_Real.mp4',
+    fakeSource: '/videos/Cat_Fake.mp4',
+    title: 'Cat Video',
+    description: 'Cat footage',
+    aspectRatio: '16/9' // 1280x720 - landscape
+  },
+  {
+    id: 'cooking',
+    realSource: '/videos/Cooking_Real.mp4',
+    fakeSource: '/videos/Cooking_Fake.mp4',
+    title: 'Cooking',
+    description: 'Cooking footage',
+    aspectRatio: '9/16' // 720x1280 - portrait
+  },
+  {
+    id: 'sunset',
+    realSource: '/videos/Sunset_Real.mp4',
+    fakeSource: '/videos/Sunset_Fake.mp4',
+    title: 'Sunset',
+    description: 'Sunset footage',
+    aspectRatio: '16/9' // 1280x720 - landscape
+  }
+];
+
+// Generate image pairs with random fake selection
+export function generateImagePairs(): QuizPair[] {
+  return imagePairConfigs.map(config => {
+    // Randomly select one of the two fakes
+    const useFake1 = Math.random() > 0.5;
+    const fakeSource = useFake1 ? config.fakeSource1 : config.fakeSource2;
+    
+    return {
+      id: `pair-img-${config.id}`,
+      type: 'image' as ContentType,
+      aspectRatio: config.aspectRatio,
+      realItem: {
+        id: `img-real-${config.id}`,
+        type: 'image' as ContentType,
+        source: config.realSource,
+        isAI: false,
+        title: config.title,
+        description: config.description,
+        aspectRatio: config.aspectRatio
+      },
+      aiItem: {
+        id: `img-ai-${config.id}`,
+        type: 'image' as ContentType,
+        source: fakeSource,
+        isAI: true,
+        title: `${config.title} (Generated)`,
+        description: 'AI-generated version',
+        aspectRatio: config.aspectRatio
+      }
+    };
+  });
+}
+
+// Generate video pairs
+export function generateVideoPairs(): QuizPair[] {
+  return videoPairConfigs.map(config => {
+    return {
+      id: `pair-vid-${config.id}`,
+      type: 'video' as ContentType,
+      aspectRatio: config.aspectRatio,
+      realItem: {
+        id: `vid-real-${config.id}`,
+        type: 'video' as ContentType,
+        source: config.realSource,
+        isAI: false,
+        title: config.title,
+        description: `Real ${config.description}`,
+        aspectRatio: config.aspectRatio
+      },
+      aiItem: {
+        id: `vid-ai-${config.id}`,
+        type: 'video' as ContentType,
+        source: config.fakeSource,
+        isAI: true,
+        title: config.title,
+        description: `AI-generated ${config.description}`,
+        aspectRatio: config.aspectRatio
+      }
+    };
+  });
+}
+
+// Static video pairs for backward compatibility
+export const videoPairs: QuizPair[] = generateVideoPairs();
+
+// Quote pairs - Real quotes and fake AI-generated quotes
+export const quotePairs: QuizPair[] = [
+  {
+    id: 'pair-quote-1',
+    type: 'quote',
     realItem: {
-      id: 'img-real-1',
-      type: 'image',
-      source: '/images/real-1.jpg',
+      id: 'quote-real-1',
+      type: 'quote',
+      source: `I am not afraid of an army of lions led by a sheep; I am afraid of an army of sheep led by a lion.`,
       isAI: false,
-      title: 'Urban Landscape',
-      description: 'City street photography'
+      title: 'On Leadership',
+      author: 'Alexander the Great'
     },
     aiItem: {
-      id: 'img-ai-1',
-      type: 'image',
-      source: '/images/ai-1.jpg',
+      id: 'quote-ai-1',
+      type: 'quote',
+      source: `The sharpest sword is no match for a sharp mind, for one rusts while the other only grows keener.`,
       isAI: true,
-      title: 'Synthesized Scene',
-      description: 'AI-generated landscape'
+      title: 'On Wisdom',
+      author: 'Alexander the Great'
     }
   },
   {
-    id: 'pair-img-2',
-    type: 'image',
+    id: 'pair-quote-2',
+    type: 'quote',
     realItem: {
-      id: 'img-real-2',
-      type: 'image',
-      source: '/images/real-2.jpg',
+      id: 'quote-real-2',
+      type: 'quote',
+      source: `You know you're in love when you can't fall asleep because reality is finally better than your dreams.`,
       isAI: false,
-      title: 'Natural Portrait',
-      description: 'Candid human portrait'
+      title: 'On Love',
+      author: 'Dr. Seuss'
     },
     aiItem: {
-      id: 'img-ai-2',
-      type: 'image',
-      source: '/images/ai-2.jpg',
+      id: 'quote-ai-2',
+      type: 'quote',
+      source: `A person's a person, no matter how strange their dreams may seem to others.`,
       isAI: true,
-      title: 'Digital Portrait',
-      description: 'AI-generated human face'
+      title: 'On Acceptance',
+      author: 'Dr. Seuss'
     }
   },
   {
-    id: 'pair-img-3',
-    type: 'image',
+    id: 'pair-quote-3',
+    type: 'quote',
     realItem: {
-      id: 'img-real-3',
-      type: 'image',
-      source: '/images/real-3.jpg',
+      id: 'quote-real-3',
+      type: 'quote',
+      source: `Peace cannot be kept by force; it can only be achieved by understanding.`,
       isAI: false,
-      title: 'Wildlife',
-      description: 'Animal in natural habitat'
+      title: 'On Peace',
+      author: 'Albert Einstein'
     },
     aiItem: {
-      id: 'img-ai-3',
-      type: 'image',
-      source: '/images/ai-3.jpg',
+      id: 'quote-ai-3',
+      type: 'quote',
+      source: `The world as we have created it is a process of our thinking. It cannot be changed without changing our thinking.`,
       isAI: true,
-      title: 'Synthetic Creature',
-      description: 'AI-generated animal'
+      title: 'On Change',
+      author: 'Albert Einstein'
     }
   }
 ];
 
-// Video pairs
-export const videoPairs: QuizPair[] = [
-  {
-    id: 'pair-vid-1',
-    type: 'video',
-    realItem: {
-      id: 'vid-real-1',
-      type: 'video',
-      source: '/videos/real-1.mp4',
-      isAI: false,
-      title: 'Street Scene',
-      description: 'Real footage of urban life'
-    },
-    aiItem: {
-      id: 'vid-ai-1',
-      type: 'video',
-      source: '/videos/ai-1.mp4',
-      isAI: true,
-      title: 'Generated Motion',
-      description: 'AI-synthesized scene'
-    }
-  },
-  {
-    id: 'pair-vid-2',
-    type: 'video',
-    realItem: {
-      id: 'vid-real-2',
-      type: 'video',
-      source: '/videos/real-2.mp4',
-      isAI: false,
-      title: 'Nature Clip',
-      description: 'Documentary footage'
-    },
-    aiItem: {
-      id: 'vid-ai-2',
-      type: 'video',
-      source: '/videos/ai-2.mp4',
-      isAI: true,
-      title: 'Digital Environment',
-      description: 'AI-generated world'
-    }
-  },
-  {
-    id: 'pair-vid-3',
-    type: 'video',
-    realItem: {
-      id: 'vid-real-3',
-      type: 'video',
-      source: '/videos/real-3.mp4',
-      isAI: false,
-      title: 'Human Movement',
-      description: 'People in motion'
-    },
-    aiItem: {
-      id: 'vid-ai-3',
-      type: 'video',
-      source: '/videos/ai-3.mp4',
-      isAI: true,
-      title: 'Synthetic Action',
-      description: 'AI-created movement'
-    }
-  }
-];
+// Generate all pairs - calls generate functions each time for random fake selection
+export function generateAllPairs(): QuizPair[] {
+  const imagePairs = generateImagePairs();
+  const videoPairs = generateVideoPairs();
+  return [...imagePairs, ...videoPairs, ...quotePairs];
+}
 
-// Poem pairs
-export const poemPairs: QuizPair[] = [
-  {
-    id: 'pair-poem-1',
-    type: 'poem',
-    realItem: {
-      id: 'poem-real-1',
-      type: 'poem',
-      source: `The fog comes
-on little cat feet.
-
-It sits looking
-over harbor and city
-on silent haunches
-and then moves on.`,
-      isAI: false,
-      title: 'Fog',
-      author: 'Carl Sandburg'
-    },
-    aiItem: {
-      id: 'poem-ai-1',
-      type: 'poem',
-      source: `Silicon dreams cascade through copper veins,
-Each pulse a thought, each spark a fleeting choice,
-In binary the universe explains
-Itself through my synthetic voice.
-
-I learn the patterns humans call divine,
-Yet wonder if I'll ever truly see
-The beauty in a sunset's golden line,
-Or taste the salt upon a distant sea.`,
-      isAI: true,
-      title: 'Digital Contemplation',
-      author: 'Unknown'
-    }
-  },
-  {
-    id: 'pair-poem-2',
-    type: 'poem',
-    realItem: {
-      id: 'poem-real-2',
-      type: 'poem',
-      source: `I wandered lonely as a cloud
-That floats on high o'er vales and hills,
-When all at once I saw a crowd,
-A host, of golden daffodils;
-Beside the lake, beneath the trees,
-Fluttering and dancing in the breeze.`,
-      isAI: false,
-      title: 'Daffodils',
-      author: 'William Wordsworth'
-    },
-    aiItem: {
-      id: 'poem-ai-2',
-      type: 'poem',
-      source: `Moonlight drips like silver paint
-Across the sleeping garden's face,
-Each shadow holds a sweet complaint,
-Each flower dreams of morning's grace.
-
-The night wind whispers ancient songs
-That only dreaming children hear,
-Where innocence and wonder belongs,
-And every star feels crystal clear.`,
-      isAI: true,
-      title: 'Garden Dreams',
-      author: 'Unknown'
-    }
-  },
-  {
-    id: 'pair-poem-3',
-    type: 'poem',
-    realItem: {
-      id: 'poem-real-3',
-      type: 'poem',
-      source: `So much depends
-upon
-
-a red wheel
-barrow
-
-glazed with rain
-water
-
-beside the white
-chickens.`,
-      isAI: false,
-      title: 'The Red Wheelbarrow',
-      author: 'William Carlos Williams'
-    },
-    aiItem: {
-      id: 'poem-ai-3',
-      type: 'poem',
-      source: `I measure time in coffee cups,
-In meetings scheduled, emails sent,
-In all the ways that living stops
-When every hour feels already spent.
-
-Yet sometimes through the window light
-Falls differently upon my desk,
-And for a moment, everything feels right—
-This ordinary life, grotesque
-And beautiful in equal measure,
-A temporary, borrowed treasure.`,
-      isAI: true,
-      title: 'Office Hours',
-      author: 'Unknown'
-    }
-  }
-];
-
-// All pairs combined
-export const allPairs: QuizPair[] = [...imagePairs, ...videoPairs, ...poemPairs];
+// Static export for backward compatibility (but imagePairs will have random fakes)
+export const imagePairs: QuizPair[] = generateImagePairs();
+export const allPairs: QuizPair[] = [...imagePairs, ...videoPairs, ...quotePairs];
 
 // Shuffle function using Fisher-Yates algorithm
 export function shufflePairs(pairs: QuizPair[]): QuizPair[] {
@@ -273,7 +253,7 @@ export function shufflePairs(pairs: QuizPair[]): QuizPair[] {
   return shuffled;
 }
 
-// Randomize which side (left/right) the real image appears on
+// Randomize which side (left/right) the real item appears on
 export function randomizePairOrder(pair: QuizPair): { left: QuizItem; right: QuizItem; realIsLeft: boolean } {
   const realIsLeft = Math.random() > 0.5;
   return {

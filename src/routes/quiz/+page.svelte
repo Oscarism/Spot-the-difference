@@ -75,18 +75,21 @@
             {:else if pair.pair.type === 'video'}
               VIDEO
             {:else}
-              TEXT
+              QUOTE
             {/if}
           </div>
           
           <!-- Side by Side Comparison -->
-          <div class="comparison-grid">
+          <div class="comparison-grid" class:portrait={pair.pair.aspectRatio === '3/4' || pair.pair.aspectRatio === '9/16'}>
             <!-- Left Option -->
             <button 
-              class="image-option"
+              class="media-option"
               class:selected={game.selectedSide === 'left'}
+              class:portrait={pair.pair.aspectRatio === '3/4' || pair.pair.aspectRatio === '9/16'}
+              class:landscape={pair.pair.aspectRatio === '16/9' || pair.pair.aspectRatio === '4/3'}
               onclick={() => handleSelect('left')}
               type="button"
+              style={pair.pair.aspectRatio ? `aspect-ratio: ${pair.pair.aspectRatio}` : ''}
             >
               {#if pair.pair.type === 'image'}
                 <img src={pair.left.source} alt="Option 1" />
@@ -95,18 +98,24 @@
                   <track kind="captions" />
                 </video>
               {:else}
-                <div class="poem-content">
-                  <p class="poem-text">{pair.left.source}</p>
+                <div class="quote-content">
+                  <p class="quote-text">"{pair.left.source}"</p>
+                  {#if pair.left.author}
+                    <p class="quote-author">— {pair.left.author}</p>
+                  {/if}
                 </div>
               {/if}
             </button>
             
             <!-- Right Option -->
             <button 
-              class="image-option"
+              class="media-option"
               class:selected={game.selectedSide === 'right'}
+              class:portrait={pair.pair.aspectRatio === '3/4' || pair.pair.aspectRatio === '9/16'}
+              class:landscape={pair.pair.aspectRatio === '16/9' || pair.pair.aspectRatio === '4/3'}
               onclick={() => handleSelect('right')}
               type="button"
+              style={pair.pair.aspectRatio ? `aspect-ratio: ${pair.pair.aspectRatio}` : ''}
             >
               {#if pair.pair.type === 'image'}
                 <img src={pair.right.source} alt="Option 2" />
@@ -115,8 +124,11 @@
                   <track kind="captions" />
                 </video>
               {:else}
-                <div class="poem-content">
-                  <p class="poem-text">{pair.right.source}</p>
+                <div class="quote-content">
+                  <p class="quote-text">"{pair.right.source}"</p>
+                  {#if pair.right.author}
+                    <p class="quote-author">— {pair.right.author}</p>
+                  {/if}
                 </div>
               {/if}
             </button>
@@ -259,52 +271,70 @@
     margin-bottom: 2rem;
   }
   
-  .image-option {
+  .comparison-grid.portrait {
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  
+  .media-option {
     position: relative;
-    background: transparent;
+    background: #111;
     border: 4px solid transparent;
     border-radius: 12px;
     overflow: hidden;
     cursor: pointer;
     transition: border-color 0.15s ease;
     padding: 0;
-    aspect-ratio: 4/3;
-  }
-  
-  .image-option:hover {
-    border-color: var(--accent);
-  }
-  
-  .image-option.selected {
-    border-color: var(--accent);
-  }
-  
-  .image-option img,
-  .image-option video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-  
-  .poem-content {
-    width: 100%;
-    height: 100%;
-    padding: 1.5rem;
-    background: var(--bg-card-secondary);
     display: flex;
     align-items: center;
     justify-content: center;
   }
   
-  .poem-text {
+  .media-option:hover {
+    border-color: var(--accent);
+  }
+  
+  .media-option.selected {
+    border-color: var(--accent);
+  }
+  
+  .media-option img,
+  .media-option video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+  
+  .quote-content {
+    width: 100%;
+    height: 100%;
+    padding: 1.5rem;
+    background: var(--bg-card-secondary);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+  }
+  
+  .quote-text {
     font-family: 'DM Sans', sans-serif;
-    font-size: 1rem;
+    font-size: 1.125rem;
+    font-style: italic;
     line-height: 1.7;
     color: var(--text-primary);
-    white-space: pre-line;
     margin: 0;
-    text-align: left;
+    text-align: center;
+  }
+  
+  .quote-author {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--accent);
+    margin: 0;
   }
   
   /* Submit Section */
@@ -350,8 +380,8 @@
       font-size: 1.625rem;
     }
     
-    .poem-text {
-      font-size: 1.0625rem;
+    .quote-text {
+      font-size: 1rem;
     }
     
     .submit-section .btn {

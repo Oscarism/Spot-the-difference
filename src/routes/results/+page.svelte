@@ -103,13 +103,13 @@
           
           <div class="category-card">
             <div class="category-header">
-              <span class="category-name">Text</span>
-              <span class="category-score">{categoryScores.poem.correct}/{categoryScores.poem.total}</span>
+              <span class="category-name">Quotes</span>
+              <span class="category-score">{categoryScores.quote.correct}/{categoryScores.quote.total}</span>
             </div>
             <div class="category-bar">
               <div 
                 class="category-fill" 
-                style="width: {categoryScores.poem.total > 0 ? (categoryScores.poem.correct / categoryScores.poem.total * 100) : 0}%"
+                style="width: {categoryScores.quote.total > 0 ? (categoryScores.quote.correct / categoryScores.quote.total * 100) : 0}%"
               ></div>
             </div>
           </div>
