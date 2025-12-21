@@ -1,31 +1,24 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
-// In-memory store for development (Netlify Blobs will be used in production)
-const statsStore: Record<string, { totalCorrect: number; totalAttempts: number }> = {};
+// For production, use Netlify Functions instead of SvelteKit API routes
+// This endpoint is just a placeholder that redirects to the Netlify function
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, fetch }) => {
     try {
-        const { ageGroup, correct, total } = await request.json();
-
-        if (!ageGroup || typeof correct !== 'number' || typeof total !== 'number') {
-            return json({ error: 'Invalid request data' }, { status: 400 });
-        }
-
-        // Initialize or update stats for this age group
-        if (!statsStore[ageGroup]) {
-            statsStore[ageGroup] = { totalCorrect: 0, totalAttempts: 0 };
-        }
-
-        statsStore[ageGroup].totalCorrect += correct;
-        statsStore[ageGroup].totalAttempts += 1;
-
-        return json({ success: true });
+        const body = await request.json();
+        
+        // Forward to Netlify function
+        const response = await fetch('/.netlify/functions/submit-score', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        
+        const data = await response.json();
+        return json(data, { status: response.status });
     } catch (error) {
         console.error('Error submitting score:', error);
         return json({ error: 'Failed to submit score' }, { status: 500 });
     }
 };
-
-// Export statsStore for use by leaderboard endpoint
-export { statsStore };
