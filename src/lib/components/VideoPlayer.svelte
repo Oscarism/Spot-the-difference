@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { QuizItem } from '../data/content';
+  import { browser } from '$app/environment';
   
   let { item }: { item: QuizItem } = $props();
   let loaded = $state(false);
@@ -7,22 +8,50 @@
   let videoRef: HTMLVideoElement | null = $state(null);
   let isPlaying = $state(false);
   
+  // Detect iOS devices (iPhone, iPad, iPod)
+  const isIOS = $derived(
+    browser && (
+      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      // iPad on iOS 13+ reports as MacIntel but supports touch
+      (navigator.userAgent.includes('Mac') && 'ontouchend' in document)
+    )
+  );
+  
   function togglePlay() {
     if (videoRef) {
       if (isPlaying) {
         videoRef.pause();
       } else {
-        videoRef.play();
+        videoRef.play().catch((err) => {
+          console.log('Playback failed:', err);
+        });
       }
       isPlaying = !isPlaying;
     }
   }
   
   function handleEnded() {
-    isPlaying = false;
-    if (videoRef) {
+    // On iOS, we manually restart the video for looping
+    if (isIOS && videoRef) {
       videoRef.currentTime = 0;
+      videoRef.play().catch((err) => {
+        console.log('Replay failed:', err);
+        isPlaying = false;
+      });
+    } else {
+      isPlaying = false;
+      if (videoRef) {
+        videoRef.currentTime = 0;
+      }
     }
+  }
+  
+  function handlePlay() {
+    isPlaying = true;
+  }
+  
+  function handlePause() {
+    isPlaying = false;
   }
 </script>
 
@@ -52,13 +81,15 @@
         onloadeddata={() => loaded = true}
         onerror={() => error = true}
         onended={handleEnded}
+        onplay={handlePlay}
+        onpause={handlePause}
         playsinline
-        loop
+        loop={!isIOS}
       ></video>
       
       {#if loaded}
-        <button class="play-overlay" onclick={togglePlay} aria-label={isPlaying ? 'Pause' : 'Play'}>
-          <div class="play-button" class:playing={isPlaying}>
+        <button class="play-overlay" class:is-ios={isIOS} onclick={togglePlay} aria-label={isPlaying ? 'Pause' : 'Play'}>
+          <div class="play-button" class:playing={isPlaying} class:is-ios={isIOS}>
             {#if isPlaying}
               <span class="pause-icon">❚❚</span>
             {:else}
@@ -205,6 +236,16 @@
   
   .play-button.playing {
     opacity: 0;
+  }
+  
+  /* iOS-specific: Always show play/pause button */
+  .play-button.playing.is-ios {
+    opacity: 0.7;
+  }
+  
+  .play-overlay.is-ios:hover .play-button.playing.is-ios,
+  .play-overlay.is-ios:active .play-button.playing.is-ios {
+    opacity: 1;
   }
   
   .play-overlay:hover .play-button.playing {
