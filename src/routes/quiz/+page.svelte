@@ -1,16 +1,40 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
+  import { browser } from '$app/environment';
   import { gameStore, currentPair, progress, submitScore } from '$lib/stores/game';
   
   let game = $derived($gameStore);
   let pair = $derived($currentPair);
   let prog = $derived($progress);
   
+  // iOS detection
+  let isIOS = $state(false);
+  
+  // Video refs and playing states for iOS
+  let leftVideoRef: HTMLVideoElement | null = $state(null);
+  let rightVideoRef: HTMLVideoElement | null = $state(null);
+  let leftPlaying = $state(false);
+  let rightPlaying = $state(false);
+  
   // Redirect if no age group selected
   onMount(() => {
     if (!game.ageGroup) {
       goto('/age');
+    }
+    
+    // Detect iOS
+    if (browser) {
+      isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.userAgent.includes('Mac') && 'ontouchend' in document);
+    }
+  });
+  
+  // Reset video states when pair changes
+  $effect(() => {
+    if (pair) {
+      leftPlaying = false;
+      rightPlaying = false;
     }
   });
   
@@ -29,6 +53,62 @@
   function handleSubmit() {
     if (game.selectedSide) {
       gameStore.submitAnswer();
+    }
+  }
+  
+  // iOS-specific: Play left video, pause right
+  function playLeftVideo() {
+    if (leftVideoRef) {
+      // Pause the other video first
+      if (rightVideoRef && rightPlaying) {
+        rightVideoRef.pause();
+        rightPlaying = false;
+      }
+      
+      if (leftPlaying) {
+        leftVideoRef.pause();
+        leftPlaying = false;
+      } else {
+        leftVideoRef.play().catch(err => console.log('Left video play failed:', err));
+        leftPlaying = true;
+      }
+    }
+  }
+  
+  // iOS-specific: Play right video, pause left
+  function playRightVideo() {
+    if (rightVideoRef) {
+      // Pause the other video first
+      if (leftVideoRef && leftPlaying) {
+        leftVideoRef.pause();
+        leftPlaying = false;
+      }
+      
+      if (rightPlaying) {
+        rightVideoRef.pause();
+        rightPlaying = false;
+      } else {
+        rightVideoRef.play().catch(err => console.log('Right video play failed:', err));
+        rightPlaying = true;
+      }
+    }
+  }
+  
+  function handleLeftVideoEnded() {
+    if (leftVideoRef) {
+      leftVideoRef.currentTime = 0;
+      if (isIOS) {
+        leftVideoRef.play().catch(() => { leftPlaying = false; });
+      }
+    }
+  }
+  
+  function handleRightVideoEnded() {
+    if (rightVideoRef) {
+      rightVideoRef.currentTime = 0;
+      if (isIOS) {
+        rightVideoRef.play().catch(() => { rightPlaying = false; });
+      }
     }
   }
 </script>
@@ -82,56 +162,102 @@
           <!-- Side by Side Comparison -->
           <div class="comparison-grid" class:portrait={pair.pair.aspectRatio === '3/4' || pair.pair.aspectRatio === '9/16'}>
             <!-- Left Option -->
-            <button 
-              class="media-option"
-              class:selected={game.selectedSide === 'left'}
-              class:portrait={pair.pair.aspectRatio === '3/4' || pair.pair.aspectRatio === '9/16'}
-              class:landscape={pair.pair.aspectRatio === '16/9' || pair.pair.aspectRatio === '4/3'}
-              onclick={() => handleSelect('left')}
-              type="button"
-              style={pair.pair.aspectRatio ? `aspect-ratio: ${pair.pair.aspectRatio}` : ''}
-            >
-              {#if pair.pair.type === 'image'}
-                <img src={pair.left.source} alt="Option 1" />
-              {:else if pair.pair.type === 'video'}
-                <video src={pair.left.source} muted loop autoplay playsinline>
-                  <track kind="captions" />
-                </video>
-              {:else}
-                <div class="quote-content">
-                  <p class="quote-text">"{pair.left.source}"</p>
-                  {#if pair.left.author}
-                    <p class="quote-author">— {pair.left.author}</p>
-                  {/if}
-                </div>
+            <div class="media-container">
+              <button 
+                class="media-option"
+                class:selected={game.selectedSide === 'left'}
+                class:portrait={pair.pair.aspectRatio === '3/4' || pair.pair.aspectRatio === '9/16'}
+                class:landscape={pair.pair.aspectRatio === '16/9' || pair.pair.aspectRatio === '4/3'}
+                onclick={() => handleSelect('left')}
+                type="button"
+                style={pair.pair.aspectRatio ? `aspect-ratio: ${pair.pair.aspectRatio}` : ''}
+              >
+                {#if pair.pair.type === 'image'}
+                  <img src={pair.left.source} alt="Option 1" />
+                {:else if pair.pair.type === 'video'}
+                  <video 
+                    bind:this={leftVideoRef}
+                    src={pair.left.source} 
+                    muted 
+                    loop={!isIOS}
+                    autoplay={!isIOS}
+                    playsinline
+                    onended={handleLeftVideoEnded}
+                  >
+                    <track kind="captions" />
+                  </video>
+                {:else}
+                  <div class="quote-content">
+                    <p class="quote-text">"{pair.left.source}"</p>
+                    {#if pair.left.author}
+                      <p class="quote-author">— {pair.left.author}</p>
+                    {/if}
+                  </div>
+                {/if}
+              </button>
+              
+              <!-- iOS Play Button - Outside the video frame -->
+              {#if isIOS && pair.pair.type === 'video'}
+                <button 
+                  class="ios-play-btn"
+                  onclick={playLeftVideo}
+                  type="button"
+                  aria-label={leftPlaying ? 'Pause Video 1' : 'Play Video 1'}
+                >
+                  <span class="ios-play-icon">{leftPlaying ? '❚❚' : '▶'}</span>
+                  <span class="ios-play-label">{leftPlaying ? 'Pause' : 'Play'} Video 1</span>
+                </button>
               {/if}
-            </button>
+            </div>
             
             <!-- Right Option -->
-            <button 
-              class="media-option"
-              class:selected={game.selectedSide === 'right'}
-              class:portrait={pair.pair.aspectRatio === '3/4' || pair.pair.aspectRatio === '9/16'}
-              class:landscape={pair.pair.aspectRatio === '16/9' || pair.pair.aspectRatio === '4/3'}
-              onclick={() => handleSelect('right')}
-              type="button"
-              style={pair.pair.aspectRatio ? `aspect-ratio: ${pair.pair.aspectRatio}` : ''}
-            >
-              {#if pair.pair.type === 'image'}
-                <img src={pair.right.source} alt="Option 2" />
-              {:else if pair.pair.type === 'video'}
-                <video src={pair.right.source} muted loop autoplay playsinline>
-                  <track kind="captions" />
-                </video>
-              {:else}
-                <div class="quote-content">
-                  <p class="quote-text">"{pair.right.source}"</p>
-                  {#if pair.right.author}
-                    <p class="quote-author">— {pair.right.author}</p>
-                  {/if}
-                </div>
+            <div class="media-container">
+              <button 
+                class="media-option"
+                class:selected={game.selectedSide === 'right'}
+                class:portrait={pair.pair.aspectRatio === '3/4' || pair.pair.aspectRatio === '9/16'}
+                class:landscape={pair.pair.aspectRatio === '16/9' || pair.pair.aspectRatio === '4/3'}
+                onclick={() => handleSelect('right')}
+                type="button"
+                style={pair.pair.aspectRatio ? `aspect-ratio: ${pair.pair.aspectRatio}` : ''}
+              >
+                {#if pair.pair.type === 'image'}
+                  <img src={pair.right.source} alt="Option 2" />
+                {:else if pair.pair.type === 'video'}
+                  <video 
+                    bind:this={rightVideoRef}
+                    src={pair.right.source} 
+                    muted 
+                    loop={!isIOS}
+                    autoplay={!isIOS}
+                    playsinline
+                    onended={handleRightVideoEnded}
+                  >
+                    <track kind="captions" />
+                  </video>
+                {:else}
+                  <div class="quote-content">
+                    <p class="quote-text">"{pair.right.source}"</p>
+                    {#if pair.right.author}
+                      <p class="quote-author">— {pair.right.author}</p>
+                    {/if}
+                  </div>
+                {/if}
+              </button>
+              
+              <!-- iOS Play Button - Outside the video frame -->
+              {#if isIOS && pair.pair.type === 'video'}
+                <button 
+                  class="ios-play-btn"
+                  onclick={playRightVideo}
+                  type="button"
+                  aria-label={rightPlaying ? 'Pause Video 2' : 'Play Video 2'}
+                >
+                  <span class="ios-play-icon">{rightPlaying ? '❚❚' : '▶'}</span>
+                  <span class="ios-play-label">{rightPlaying ? 'Pause' : 'Play'} Video 2</span>
+                </button>
               {/if}
-            </button>
+            </div>
           </div>
           
           <!-- Submit Button - Primary action is accent -->
@@ -335,6 +461,48 @@
     font-weight: 500;
     color: var(--accent);
     margin: 0;
+  }
+  
+  /* Media Container - wraps video + iOS play button */
+  .media-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  /* iOS Play Button - Outside video frame */
+  .ios-play-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    background: linear-gradient(135deg, var(--accent), #6366f1);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+  }
+  
+  .ios-play-btn:hover,
+  .ios-play-btn:active {
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+  }
+  
+  .ios-play-icon {
+    font-size: 1rem;
+    color: white;
+  }
+  
+  .ios-play-label {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: white;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
   
   /* Submit Section */
