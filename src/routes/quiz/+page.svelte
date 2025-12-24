@@ -11,11 +11,9 @@
   // iOS detection
   let isIOS = $state(false);
   
-  // Video refs and playing states for iOS
-  let leftVideoRef: HTMLVideoElement | null = $state(null);
-  let rightVideoRef: HTMLVideoElement | null = $state(null);
-  let leftPlaying = $state(false);
-  let rightPlaying = $state(false);
+  // Refs for iframes (for replay)
+  let leftVideoRef: HTMLIFrameElement | HTMLVideoElement | null = $state(null);
+  let rightVideoRef: HTMLIFrameElement | HTMLVideoElement | null = $state(null);
   
   // Redirect if no age group selected
   onMount(() => {
@@ -27,14 +25,6 @@
     if (browser) {
       isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
         (navigator.userAgent.includes('Mac') && 'ontouchend' in document);
-    }
-  });
-  
-  // Reset video states when pair changes
-  $effect(() => {
-    if (pair) {
-      leftPlaying = false;
-      rightPlaying = false;
     }
   });
   
@@ -56,59 +46,29 @@
     }
   }
   
-  // iOS-specific: Play left video, pause right
-  function playLeftVideo() {
-    if (leftVideoRef) {
-      // Pause the other video first
-      if (rightVideoRef && rightPlaying) {
-        rightVideoRef.pause();
-        rightPlaying = false;
-      }
-      
-      if (leftPlaying) {
-        leftVideoRef.pause();
-        leftPlaying = false;
-      } else {
-        leftVideoRef.play().catch(err => console.log('Left video play failed:', err));
-        leftPlaying = true;
-      }
+  // Replay left video (reload iframe src to restart)
+  function replayLeftVideo(youtubeId: string | undefined) {
+    if (leftVideoRef && leftVideoRef instanceof HTMLIFrameElement && youtubeId) {
+      const currentSrc = leftVideoRef.src;
+      leftVideoRef.src = '';
+      setTimeout(() => {
+        if (leftVideoRef instanceof HTMLIFrameElement) {
+          leftVideoRef.src = currentSrc;
+        }
+      }, 100);
     }
   }
   
-  // iOS-specific: Play right video, pause left
-  function playRightVideo() {
-    if (rightVideoRef) {
-      // Pause the other video first
-      if (leftVideoRef && leftPlaying) {
-        leftVideoRef.pause();
-        leftPlaying = false;
-      }
-      
-      if (rightPlaying) {
-        rightVideoRef.pause();
-        rightPlaying = false;
-      } else {
-        rightVideoRef.play().catch(err => console.log('Right video play failed:', err));
-        rightPlaying = true;
-      }
-    }
-  }
-  
-  function handleLeftVideoEnded() {
-    if (leftVideoRef) {
-      leftVideoRef.currentTime = 0;
-      if (isIOS) {
-        leftVideoRef.play().catch(() => { leftPlaying = false; });
-      }
-    }
-  }
-  
-  function handleRightVideoEnded() {
-    if (rightVideoRef) {
-      rightVideoRef.currentTime = 0;
-      if (isIOS) {
-        rightVideoRef.play().catch(() => { rightPlaying = false; });
-      }
+  // Replay right video (reload iframe src to restart)
+  function replayRightVideo(youtubeId: string | undefined) {
+    if (rightVideoRef && rightVideoRef instanceof HTMLIFrameElement && youtubeId) {
+      const currentSrc = rightVideoRef.src;
+      rightVideoRef.src = '';
+      setTimeout(() => {
+        if (rightVideoRef instanceof HTMLIFrameElement) {
+          rightVideoRef.src = currentSrc;
+        }
+      }, 100);
     }
   }
 </script>
@@ -175,17 +135,29 @@
                 {#if pair.pair.type === 'image'}
                   <img src={pair.left.source} alt="Option 1" />
                 {:else if pair.pair.type === 'video'}
-                  <video 
-                    bind:this={leftVideoRef}
-                    src={pair.left.source} 
-                    muted 
-                    loop={!isIOS}
-                    autoplay={!isIOS}
-                    playsinline
-                    onended={handleLeftVideoEnded}
-                  >
-                    <track kind="captions" />
-                  </video>
+                  {#if isIOS && pair.left.youtubeId}
+                    <!-- YouTube embed for iOS -->
+                    <iframe
+                      bind:this={leftVideoRef}
+                      src="https://www.youtube.com/embed/{pair.left.youtubeId}?autoplay=1&mute=1&loop=1&playlist={pair.left.youtubeId}&controls=0&modestbranding=1&rel=0&showinfo=0&playsinline=1"
+                      title="Video 1"
+                      frameborder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowfullscreen
+                      class="youtube-embed"
+                    ></iframe>
+                  {:else}
+                    <video 
+                      bind:this={leftVideoRef}
+                      src={pair.left.source} 
+                      muted 
+                      loop
+                      autoplay
+                      playsinline
+                    >
+                      <track kind="captions" />
+                    </video>
+                  {/if}
                 {:else}
                   <div class="quote-content">
                     <p class="quote-text">"{pair.left.source}"</p>
@@ -196,16 +168,16 @@
                 {/if}
               </button>
               
-              <!-- iOS Play Button - Outside the video frame -->
-              {#if isIOS && pair.pair.type === 'video'}
+              <!-- iOS Replay Button - Outside the video frame -->
+              {#if isIOS && pair.pair.type === 'video' && pair.left.youtubeId}
                 <button 
                   class="ios-play-btn"
-                  onclick={playLeftVideo}
+                  onclick={() => replayLeftVideo(pair.left.youtubeId)}
                   type="button"
-                  aria-label={leftPlaying ? 'Pause Video 1' : 'Play Video 1'}
+                  aria-label="Replay Video 1"
                 >
-                  <span class="ios-play-icon">{leftPlaying ? '❚❚' : '▶'}</span>
-                  <span class="ios-play-label">{leftPlaying ? 'Pause' : 'Play'} Video 1</span>
+                  <span class="ios-play-icon">🔄</span>
+                  <span class="ios-play-label">Replay Video 1</span>
                 </button>
               {/if}
             </div>
@@ -224,17 +196,29 @@
                 {#if pair.pair.type === 'image'}
                   <img src={pair.right.source} alt="Option 2" />
                 {:else if pair.pair.type === 'video'}
-                  <video 
-                    bind:this={rightVideoRef}
-                    src={pair.right.source} 
-                    muted 
-                    loop={!isIOS}
-                    autoplay={!isIOS}
-                    playsinline
-                    onended={handleRightVideoEnded}
-                  >
-                    <track kind="captions" />
-                  </video>
+                  {#if isIOS && pair.right.youtubeId}
+                    <!-- YouTube embed for iOS -->
+                    <iframe
+                      bind:this={rightVideoRef}
+                      src="https://www.youtube.com/embed/{pair.right.youtubeId}?autoplay=1&mute=1&loop=1&playlist={pair.right.youtubeId}&controls=0&modestbranding=1&rel=0&showinfo=0&playsinline=1"
+                      title="Video 2"
+                      frameborder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowfullscreen
+                      class="youtube-embed"
+                    ></iframe>
+                  {:else}
+                    <video 
+                      bind:this={rightVideoRef}
+                      src={pair.right.source} 
+                      muted 
+                      loop
+                      autoplay
+                      playsinline
+                    >
+                      <track kind="captions" />
+                    </video>
+                  {/if}
                 {:else}
                   <div class="quote-content">
                     <p class="quote-text">"{pair.right.source}"</p>
@@ -245,16 +229,16 @@
                 {/if}
               </button>
               
-              <!-- iOS Play Button - Outside the video frame -->
-              {#if isIOS && pair.pair.type === 'video'}
+              <!-- iOS Replay Button - Outside the video frame -->
+              {#if isIOS && pair.pair.type === 'video' && pair.right.youtubeId}
                 <button 
                   class="ios-play-btn"
-                  onclick={playRightVideo}
+                  onclick={() => replayRightVideo(pair.right.youtubeId)}
                   type="button"
-                  aria-label={rightPlaying ? 'Pause Video 2' : 'Play Video 2'}
+                  aria-label="Replay Video 2"
                 >
-                  <span class="ios-play-icon">{rightPlaying ? '❚❚' : '▶'}</span>
-                  <span class="ios-play-label">{rightPlaying ? 'Pause' : 'Play'} Video 2</span>
+                  <span class="ios-play-icon">🔄</span>
+                  <span class="ios-play-label">Replay Video 2</span>
                 </button>
               {/if}
             </div>
@@ -426,11 +410,14 @@
   }
   
   .media-option img,
-  .media-option video {
+  .media-option video,
+  .media-option .youtube-embed {
     width: 100%;
     height: 100%;
     object-fit: contain;
     display: block;
+    border: none;
+    pointer-events: none; /* Prevent iframe from blocking clicks on parent button */
   }
   
   .quote-content {

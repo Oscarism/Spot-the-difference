@@ -14,6 +14,7 @@ export interface QuizItem {
   author?: string;
   description?: string;
   aspectRatio?: AspectRatio;
+  youtubeId?: string; // YouTube video ID for iOS fallback
 }
 
 // Paired content for side-by-side comparison
@@ -71,6 +72,9 @@ interface VideoPairConfig {
   id: string;
   realSource: string;
   fakeSource: string;
+  // YouTube URLs for iOS fallback (where static videos don't play)
+  realYouTube?: string;
+  fakeYouTube?: string;
   title: string;
   description: string;
   aspectRatio: AspectRatio;
@@ -81,6 +85,8 @@ const videoPairConfigs: VideoPairConfig[] = [
     id: 'cat',
     realSource: '/videos/Cat_Real.mp4',
     fakeSource: '/videos/Cat_Fake.mp4',
+    realYouTube: 'C1z5g0-nfQA',
+    fakeYouTube: 'SA4D7Ug14rc',
     title: 'Cat Video',
     description: 'Cat footage',
     aspectRatio: '16/9' // 1280x720 - landscape
@@ -89,14 +95,18 @@ const videoPairConfigs: VideoPairConfig[] = [
     id: 'cooking',
     realSource: '/videos/Cooking_Real.mp4',
     fakeSource: '/videos/Cooking_Fake.mp4',
+    realYouTube: '3gus5hxAbU4',
+    fakeYouTube: 'oZBUJpwWCrE',
     title: 'Cooking',
     description: 'Cooking footage',
-    aspectRatio: '9/16' // 720x1280 - portrait
+    aspectRatio: '9/16' // 720x1280 - portrait (shorts)
   },
   {
     id: 'sunset',
     realSource: '/videos/Sunset_Real.mp4',
     fakeSource: '/videos/Sunset_Fake.mp4',
+    realYouTube: 'LJx-uEVezwQ',
+    fakeYouTube: 'XNrDDpxdE2Y',
     title: 'Sunset',
     description: 'Sunset footage',
     aspectRatio: '16/9' // 1280x720 - landscape
@@ -150,7 +160,8 @@ export function generateVideoPairs(): QuizPair[] {
         isAI: false,
         title: config.title,
         description: `Real ${config.description}`,
-        aspectRatio: config.aspectRatio
+        aspectRatio: config.aspectRatio,
+        youtubeId: config.realYouTube
       },
       aiItem: {
         id: `vid-ai-${config.id}`,
@@ -159,7 +170,8 @@ export function generateVideoPairs(): QuizPair[] {
         isAI: true,
         title: config.title,
         description: `AI-generated ${config.description}`,
-        aspectRatio: config.aspectRatio
+        aspectRatio: config.aspectRatio,
+        youtubeId: config.fakeYouTube
       }
     };
   });
